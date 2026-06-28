@@ -1128,39 +1128,57 @@
   let actx = null, master = null, schedTimer = null;
   let musicPlaying = false, musicOptedOut = false;
   let mStep = 0, mNext = 0;
-  const M_STEP = 0.26, M_PER_CHORD = 8;
+  const BEAT = 0.52;                  // удаан, уянгалаг хэмнэл
+  const BEATS = 32;
   const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
-  // I–V–vi–IV (C мажор) — сонгодог сэтгэл хөдөлгөм хөвүүлэлт
-  const CHORDS = [
-    { bass: 36, triad: [60, 64, 67, 72] }, // C
-    { bass: 31, triad: [55, 59, 62, 67] }, // G
-    { bass: 33, triad: [57, 60, 64, 69] }, // Am
-    { bass: 29, triad: [53, 57, 60, 65] }, // F
+
+  // I–vi–IV–V (романтик, уянгын) хөвүүлэлт — 8 хэмжээ
+  const PROG = [
+    { bass: 48, triad: [60, 64, 67] }, // C
+    { bass: 45, triad: [57, 60, 64] }, // Am
+    { bass: 41, triad: [53, 57, 60] }, // F
+    { bass: 43, triad: [55, 59, 62] }, // G
+    { bass: 48, triad: [60, 64, 67] }, // C
+    { bass: 45, triad: [57, 60, 64] }, // Am
+    { bass: 41, triad: [53, 57, 60] }, // F
+    { bass: 43, triad: [55, 59, 62] }, // G
   ];
-  const ARP = [0, 1, 2, 3, 2, 1, 2, 3];
+  // Гол аялгуу: [нот, цохилтын урт]  (0 = амралт) — дуу шиг урсах мөр
+  const MELODY = [
+    [67, 1], [64, 1], [67, 2],
+    [69, 1], [67, 1], [64, 2],
+    [65, 1], [64, 1], [62, 2],
+    [62, 1], [64, 1], [67, 2],
+    [72, 1], [71, 1], [69, 2],
+    [69, 1], [67, 1], [64, 2],
+    [65, 2], [67, 2],
+    [67, 2], [0, 1], [62, 1],
+  ];
+  const melMap = {};
+  (function () { let a = 0; for (const [n, d] of MELODY) { if (n) melMap[a] = { n, d }; a += d; } })();
 
   function mVoice(freq, t, dur, vol, type) {
     const o = actx.createOscillator(), g = actx.createGain();
     o.type = type; o.frequency.value = freq;
     o.connect(g); g.connect(master);
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(vol, t + 0.03);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.04);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.start(t); o.stop(t + dur + 0.06);
+    o.start(t); o.stop(t + dur + 0.08);
   }
-  function mSchedStep(s, t) {
-    const ch = CHORDS[Math.floor(s / M_PER_CHORD) % CHORDS.length];
-    const beat = s % M_PER_CHORD;
-    if (beat === 0 || beat === 4) mVoice(midi(ch.bass), t, 1.2, 0.10, 'triangle');
-    const note = ch.triad[ARP[beat % ARP.length]];
-    mVoice(midi(note), t, 0.5, 0.06, 'sine');
-    if (beat === 2 || beat === 6) mVoice(midi(note + 12), t, 0.7, 0.03, 'sine');
+  function mSchedBeat(b, t) {
+    const ch = PROG[Math.floor(b / 4) % PROG.length];
+    const inBar = b % 4;
+    if (inBar === 0) mVoice(midi(ch.bass), t, 1.7, 0.06, 'triangle');         // зөөлөн бас
+    mVoice(midi(ch.triad[inBar % 3]), t, 0.95, 0.03, 'sine');                 // далд арпеджио
+    const mel = melMap[b % BEATS];
+    if (mel) mVoice(midi(mel.n), t, mel.d * BEAT * 0.96, 0.085, 'triangle');  // тод гол аялгуу
   }
   function mScheduler() {
-    while (mNext < actx.currentTime + 0.25) {
-      mSchedStep(mStep, mNext);
-      mNext += M_STEP;
-      mStep = (mStep + 1) % (M_PER_CHORD * CHORDS.length);
+    while (mNext < actx.currentTime + 0.3) {
+      mSchedBeat(mStep, mNext);
+      mNext += BEAT;
+      mStep = (mStep + 1) % BEATS;
     }
     schedTimer = setTimeout(mScheduler, 30);
   }
@@ -1173,6 +1191,7 @@
         master.connect(actx.destination);
       }
       if (actx.state === 'suspended') actx.resume();
+      mStep = 0;                          // аялгуу эхнээсээ эхэлнэ
       mNext = actx.currentTime + 0.1;
       if (!schedTimer) mScheduler();
       master.gain.cancelScheduledValues(actx.currentTime);

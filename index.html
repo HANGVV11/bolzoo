@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Хайрын захидал 💌</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&family=Pacifico&family=Playfair+Display:ital,wght@0,500;0,600;1,500;1,600&display=swap" rel="stylesheet">
+
+<!-- QR код үүсгэгч (агуулга нь локалд шифрлэгдэнэ; интернэт байхгүй бол fallback зурагт API) -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+
+<style>
+  :root {
+    --blush:  #ffe4ec;
+    --rose:   #ff7fa8;
+    --crimson:#d6336c;
+    --wine:   #8e2e50;
+    --gold:   #e8b86d;
+    --cream:  #fff7f2;
+    --ink:    #5a2a40;
+    --ink-soft:#a06d82;
+    --ring:   rgba(214, 51, 108, 0.22);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    font-family: "Comfortaa", system-ui, sans-serif;
+    color: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+    position: relative; -webkit-tap-highlight-color: transparent;
+    /* лааны гэрэлт дулаан туяа + гүн сарнайн ирмэг */
+    background:
+      radial-gradient(ellipse 70% 55% at 50% 36%, rgba(255,255,255,.7) 0%, rgba(255,221,235,.35) 38%, transparent 66%),
+      radial-gradient(circle at 50% 48%, #ffd9e6 0%, #ffbcd6 46%, #f49ac0 74%, #d97aa6 100%);
+    background-attachment: fixed;
+  }
+
+  /* ---------- арын зөөлөн зүрхнүүд ---------- */
+  .bg-hearts { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .bg-hearts span { position: absolute; bottom: -40px; opacity: .4; animation: rise linear infinite; }
+  @keyframes rise {
+    0%   { transform: translateY(0) rotate(0deg);   opacity: 0; }
+    10%  { opacity: .45; }
+    100% { transform: translateY(-115vh) rotate(360deg); opacity: 0; }
+  }
+
+  /* ---------- дэлгэцүүд ---------- */
+  .screen {
+    position: relative; z-index: 2; width: 100%; min-height: 100%;
+    display: none; align-items: center; justify-content: center; padding: 24px;
+  }
+  .screen.active { display: flex; animation: fadeIn .5s ease both; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  /* ---------- карт (бэлдэх / санал) ---------- */
+  .card {
+    position: relative;
+    background: rgba(255, 252, 253, 0.86);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1.5px solid rgba(255, 255, 255, 0.92);
+    border-radius: 30px; padding: 40px 34px; width: min(94vw, 460px);
+    text-align: center; box-shadow: 0 30px 70px rgba(142, 46, 80, 0.28);
+    animation: pop .65s cubic-bezier(.2,.9,.3,1.4) both;
+  }
+  @keyframes pop {
+    from { transform: translateY(26px) scale(.92); opacity: 0; }
+    to   { transform: translateY(0) scale(1); opacity: 1; }
+  }
+
+  .badge {
+    display: inline-block; background: rgba(214, 51, 108, 0.1);
+    color: var(--crimson); font-size: 12.5px; font-weight: 600; letter-spacing: .3px;
+    padding: 6px 14px; border-radius: 999px; margin-bottom: 14px;
+  }
+  .brand {
+    font-family: "Pacifico", cursive; font-weight: 400;
+    font-size: clamp(32px, 8vw, 44px); color: var(--crimson);
+    line-height: 1.1; margin-bottom: 8px;
+    filter: drop-shadow(0 3px 10px rgba(214,51,108,.2));
+  }
+  .hint { font-size: 13.5px; color: var(--ink-soft); margin-bottom: 24px; line-height: 1.5; }
+
+  /* ---------- форм ---------- */
+  .field { display: block; text-align: left; margin-bottom: 15px; }
+  .field > span {
+    display: block; font-size: 12.5px; font-weight: 600;
+    color: var(--ink-soft); margin-bottom: 7px; padding-left: 4px;
+  }
+  input[type="text"], textarea {
+    font-family: inherit; font-size: 15px; color: var(--ink); width: 100%;
+    padding: 13px 16px; border: 1.5px solid #ffd6e4; border-radius: 16px;
+    background: #fff; transition: border-color .15s, box-shadow .15s; resize: none;
+  }
+  textarea { min-height: 68px; line-height: 1.5; }
+  input::placeholder, textarea::placeholder { color: #d9a9bd; }
+  input:focus, textarea:focus { outline: none; border-color: var(--rose); box-shadow: 0 0 0 4px var(--ring); }
+
+  /* ---------- зураг нэмэгч ---------- */
+  .uploader {
+    border: 2px dashed #ffc2d8; border-radius: 18px; padding: 22px 16px;
+    cursor: pointer; background: #fff8fb; transition: border-color .15s, background .15s, transform .1s;
+  }
+  .uploader:hover { border-color: var(--rose); background: #fff0f6; }
+  .uploader.drag { border-color: var(--crimson); background: #ffe6f0; transform: scale(1.01); }
+  .uploader-inner { display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+  .up-emoji { font-size: 28px; }
+  .uploader-inner span:last-child { font-size: 12.5px; color: var(--ink-soft); }
+  .thumbs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+  .thumb {
+    position: relative; width: 58px; height: 58px; border-radius: 14px;
+    background-size: cover; background-position: center;
+    box-shadow: 0 4px 12px rgba(142,46,80,.25); animation: pop .3s ease both;
+  }
+  .thumb button {
+    position: absolute; top: -7px; right: -7px; width: 22px; height: 22px; border-radius: 50%;
+    border: none; background: var(--crimson); color: #fff; font-size: 13px; line-height: 1;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,.2);
+  }
+
+  /* ---------- товчнууд ---------- */
+  .btn {
+    font-family: inherit; font-weight: 700; border: none; cursor: pointer;
+    border-radius: 999px; padding: 15px 30px; font-size: 17px;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .btn.primary {
+    background: linear-gradient(135deg, var(--rose), var(--crimson));
+    color: #fff; box-shadow: 0 14px 28px rgba(214,51,108,.42);
+  }
+  .btn.primary:hover { transform: translateY(-2px) scale(1.03); }
+  .btn.primary:active { transform: scale(.97); }
+  .btn.big { width: 100%; margin-top: 8px; padding: 16px; font-size: 18px; }
+  .btn.ghost { background: #fff; color: var(--ink-soft); border: 1.5px solid #ffd0e0; }
+
+  .edit-link {
+    position: absolute; top: 16px; left: 18px; background: none; border: none; cursor: pointer;
+    font-family: inherit; font-size: 13px; color: var(--ink-soft); opacity: .8;
+  }
+  .edit-link:hover { opacity: 1; color: var(--crimson); }
+
+  /* ---------- санал дэлгэц ---------- */
+  .avatar {
+    width: 116px; height: 116px; border-radius: 50%; margin: 4px auto 20px; position: relative;
+    background: linear-gradient(135deg, var(--rose), var(--crimson));
+    background-size: cover; background-position: center;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 0 5px #fff, 0 0 0 7px var(--gold), 0 16px 34px rgba(142,46,80,.35);
+    animation: beat 1.4s ease-in-out infinite;
+  }
+  .avatar .avatar-fallback { font-size: 50px; }
+  .avatar.has-photo .avatar-fallback { display: none; }
+  .avatar::after {
+    content: "💗"; position: absolute; bottom: -6px; right: -4px; font-size: 26px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.2));
+  }
+  @keyframes beat { 0%,100%{transform:scale(1);} 25%{transform:scale(1.06);} 40%{transform:scale(.99);} }
+
+  #question { font-size: clamp(23px, 6vw, 32px); line-height: 1.3; color: var(--crimson); margin-bottom: 10px; font-weight: 700; }
+  .sub { font-size: 14px; color: var(--ink-soft); margin-bottom: 30px; min-height: 20px; }
+  .btn-row { display: flex; gap: 14px; justify-content: center; align-items: center; flex-wrap: wrap; }
+  #noBtn { transition: top .18s ease, left .18s ease, transform .18s ease; }
+  #noBtn.loose { position: fixed; z-index: 6; margin: 0; }
+
+  /* ====================================================== */
+  /* ===========  РЕДАКТОР: бичих + амьд харах  =========== */
+  /* ====================================================== */
+  #setup.active { display: block; height: 100%; overflow-y: auto; padding: 30px 24px; }
+  .builder { max-width: 1120px; margin: 0 auto; }
+  .builder-head { text-align: center; margin-bottom: 22px; }
+  .builder-head .hint { margin-bottom: 0; }
+  .builder-cols { display: flex; gap: 28px; align-items: flex-start; }
+
+  .preview-pane { flex: 1.05; position: sticky; top: 8px; align-self: flex-start; max-height: calc(100vh - 30px); }
+  .form-pane { flex: .95; }
+  .form-pane .card { width: 100%; max-width: none; }
+
+  .pv-tabs { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; }
+  .pv-tab {
+    font-family: inherit; font-weight: 600; font-size: 12.5px; padding: 8px 16px;
+    border-radius: 999px; border: 1.5px solid #ffd0e0; background: #fff; color: var(--ink-soft);
+    cursor: pointer; transition: background .15s, color .15s, box-shadow .15s;
+  }
+  .pv-tab.active {
+    background: linear-gradient(135deg, var(--rose), var(--crimson)); color: #fff;
+    border-color: transparent; box-shadow: 0 6px 14px rgba(214,51,108,.3);
+  }
+  .pv-stage {
+    border-radius: 26px; padding: 34px 22px; min-height: 460px;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    background:
+      radial-gradient(circle at 50% 28%, rgba(255,255,255,.85) 0%, rgba(255,228,238,.45) 28%, transparent 56%),
+      radial-gradient(circle at 50% 56%, #ffd2e4 0%, #ff9ec4 52%, #e07ba6 100%);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.5), 0 22px 52px rgba(142,46,80,.22);
+  }
+  .pv-view { width: 100%; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .pv-view[hidden] { display: none; }
+
+  /* --- санал preview --- */
+  .pv-card { width: 100%; max-width: 320px; margin: 0 auto; padding: 28px 22px; animation: pop .5s ease both; }
+  .pv-card .avatar { width: 84px; height: 84px; margin: 0 auto 14px;
+    box-shadow: 0 0 0 4px #fff, 0 0 0 6px var(--gold), 0 12px 26px rgba(142,46,80,.3); }
+  .pv-card .avatar .avatar-fallback { font-size: 34px; }
+  .pv-q { font-size: 20px; color: var(--crimson); font-weight: 700; line-height: 1.3; margin-bottom: 8px; }
+  .pv-card .sub { font-size: 12px; margin-bottom: 18px; }
+  .pv-card .btn-row { gap: 10px; }
+  .pv-card .btn { padding: 11px 22px; font-size: 14px; }
+
+  /* --- баяр ёслол preview (хөдөлгөөнгүй, тайван) --- */
+  .preview-pane .cel-heart { font-size: 50px; animation: beat 1.3s ease-in-out infinite !important; }
+  .preview-pane .cel-title { font-size: clamp(22px, 3.2vw, 32px); margin: 4px 0 14px; animation: none !important; }
+  .preview-pane .cel-title, .preview-pane .letter, .preview-pane .letter-sign { opacity: 1 !important; transform: none !important; }
+  .preview-pane .letter, .preview-pane .letter-sign { animation: none !important; }
+  .preview-pane .polaroids { gap: 10px; margin-bottom: 4px; }
+  .preview-pane .polaroid {
+    animation: none !important; opacity: 1 !important; transform: rotate(var(--tilt, -3deg)) !important;
+    box-shadow: 0 10px 24px rgba(142,46,80,.28);
+  }
+  .preview-pane .polaroid img { width: 92px; height: 104px; }
+  .preview-pane .polaroid .pin { font-size: 16px; top: -9px; }
+  .preview-pane .letter { margin-top: 20px; padding: 20px 22px 16px; }
+  .preview-pane .letter-note { font-size: 15px; line-height: 1.6; }
+  .preview-pane .letter-sign { font-size: 13px; margin-top: 10px; }
+
+  @media (max-width: 900px) {
+    .builder-cols { flex-direction: column; }
+    .preview-pane { position: static; max-height: none; width: 100%; }
+    .pv-stage { min-height: 380px; }
+  }
+
+  /* ====================================================== */
+  /* =================  ТӨЛБӨР (демо)  ==================== */
+  /* ====================================================== */
+  #payment.active { display: flex; overflow-y: auto; }
+  .pay-card { text-align: center; }
+  .pay-title { font-size: clamp(26px, 7vw, 36px); margin-bottom: 4px; }
+
+  .order { background: #fff4f8; border: 1px solid #ffd6e4; border-radius: 16px; padding: 14px 16px; margin: 18px 0; }
+  .order-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14px; color: var(--ink); }
+  .order-row b { color: var(--crimson); font-weight: 600; }
+  .order-price { font-weight: 700; font-size: 18px; color: var(--crimson); white-space: nowrap; }
+
+  .pay-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+  .pay-tab {
+    flex: 1; font-family: inherit; font-weight: 600; font-size: 13px; padding: 11px 8px;
+    border-radius: 14px; border: 1.5px solid #ffd0e0; background: #fff; color: var(--ink-soft);
+    cursor: pointer; transition: background .15s, color .15s, box-shadow .15s;
+  }
+  .pay-tab.active {
+    background: linear-gradient(135deg, var(--rose), var(--crimson)); color: #fff;
+    border-color: transparent; box-shadow: 0 6px 14px rgba(214,51,108,.28);
+  }
+
+  .pay-method { animation: fadeIn .25s ease both; }
+  .pay-method[hidden] { display: none; }
+
+  .qr-box {
+    position: relative; width: 200px; height: 200px; margin: 6px auto 14px;
+    background: #fff; border-radius: 18px; padding: 14px; box-shadow: 0 14px 30px rgba(142,46,80,.22);
+  }
+  .qr { width: 100%; height: 100%; }
+  .qr-logo {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 42px; height: 42px; background: #fff; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 0 0 5px #fff;
+  }
+  .pay-note { font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
+  .pay-note b { color: var(--crimson); }
+
+  .cc-row { display: flex; gap: 12px; }
+  .cc-row .field { flex: 1; }
+
+  .bank-row {
+    display: flex; align-items: center; gap: 10px; padding: 11px 4px;
+    border-bottom: 1px dashed #ffd6e4; font-size: 14px; text-align: left;
+  }
+  .bank-row:last-of-type { border-bottom: none; }
+  .bank-row > span { color: var(--ink-soft); width: 118px; flex: none; }
+  .bank-row > b { color: var(--ink); flex: 1; font-weight: 600; }
+  .copy {
+    font-family: inherit; font-size: 12px; font-weight: 600; color: var(--crimson);
+    background: #fff4f8; border: 1px solid #ffd0e0; border-radius: 10px; padding: 6px 12px; cursor: pointer;
+  }
+  .copy:active { transform: scale(.95); }
+
+  #payConfirm { margin-top: 4px; }
+  #payConfirm.ok { background: linear-gradient(135deg, #52c98a, #2fa86a); box-shadow: 0 12px 24px rgba(47,168,106,.4); }
+  #payConfirm:disabled { opacity: .9; cursor: default; }
+  .pay-disclaimer { margin-top: 14px; font-size: 11.5px; color: var(--ink-soft); line-height: 1.5; }
+
+  /* ====================================================== */
+  /* ================  ХУВААЛЦАХ (share)  ================= */
+  /* ====================================================== */
+  #share.active { display: flex; overflow-y: auto; }
+  .share-card { text-align: center; }
+  .share-card .cel-heart { margin-bottom: 4px; animation: beat 1.3s ease-in-out infinite; }
+  .share-card .qr-box { margin-top: 8px; }
+  .link-row { display: flex; gap: 8px; margin: 16px 0 14px; }
+  .link-row input {
+    flex: 1; min-width: 0; font-family: inherit; font-size: 13px; color: var(--ink-soft);
+    padding: 12px 14px; border: 1.5px solid #ffd6e4; border-radius: 14px; background: #fff;
+  }
+  .link-row .btn { padding: 12px 18px; font-size: 14px; white-space: nowrap; }
+  .share-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .share-actions .btn { padding: 12px 20px; font-size: 14px; }
+  .text-link {
+    background: none; border: none; color: var(--crimson); font-family: inherit; font-weight: 600;
+    cursor: pointer; text-decoration: underline; padding: 0; font-size: inherit;
+  }
+
+  /* ====================================================== */
+  /* ===============  БАЯР ЁСЛОЛ (signature)  ============== */
+  /* ====================================================== */
+  .celebrate {
+    position: fixed; inset: 0; z-index: 10; flex-direction: column; text-align: center; padding: 30px 20px;
+    /* илүү дотно, лааны гэрэлт vignette */
+    background:
+      radial-gradient(circle at 50% 30%, rgba(255,255,255,.9) 0%, rgba(255,228,238,.5) 26%, transparent 52%),
+      radial-gradient(circle at 50% 52%, #ffd2e4 0%, #ff9ec4 44%, #e07ba6 76%, #b85d8d 100%);
+    overflow-y: auto;
+  }
+
+  .cel-stage { display: flex; flex-direction: column; align-items: center; max-width: 560px; margin: auto; }
+
+  /* зүрх + цацрах туяа (aura) */
+  .cel-heart-wrap { position: relative; width: 130px; height: 130px; display: flex; align-items: center; justify-content: center; }
+  .ring {
+    position: absolute; top: 50%; left: 50%; width: 90px; height: 90px; margin: -45px 0 0 -45px;
+    border-radius: 50%; border: 2px solid rgba(255,255,255,.65);
+    transform: scale(.4); opacity: 0; animation: aura 2.8s ease-out infinite;
+  }
+  .ring:nth-child(2) { animation-delay: .9s; }
+  .ring:nth-child(3) { animation-delay: 1.8s; }
+  @keyframes aura { 0%{transform:scale(.4);opacity:.55;} 80%{opacity:0;} 100%{transform:scale(2.4);opacity:0;} }
+  .cel-heart {
+    font-size: 84px; filter: drop-shadow(0 10px 22px rgba(214,51,108,.45));
+    animation: heartIn .9s cubic-bezier(.2,.9,.3,1.5) both, beat .95s ease-in-out .9s infinite;
+  }
+  @keyframes heartIn { from{transform:scale(0) rotate(-25deg);opacity:0;} to{transform:scale(1) rotate(0);opacity:1;} }
+
+  .cel-title {
+    font-family: "Pacifico", cursive; font-weight: 400;
+    font-size: clamp(30px, 8.5vw, 54px); line-height: 1.15; margin: 6px 0 22px;
+    background: linear-gradient(135deg, #ff5e98 0%, #d6336c 55%, #a3274f 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 4px 16px rgba(214,51,108,.35));
+    animation: riseIn .8s ease .45s both;
+  }
+  @keyframes riseIn { from{transform:translateY(20px);opacity:0;} to{transform:translateY(0);opacity:1;} }
+
+  /* polaroid дурсгал */
+  .polaroids { display: flex; gap: 16px; justify-content: center; align-items: flex-start; flex-wrap: wrap; margin-bottom: 8px; }
+  .polaroid {
+    position: relative; background: #fff; padding: 11px 11px 16px; border-radius: 6px;
+    box-shadow: 0 20px 44px rgba(142,46,80,.32); transform: rotate(var(--tilt, -3deg));
+    animation: dropIn .85s cubic-bezier(.2,.9,.3,1.35) var(--delay, .9s) both, floaty 4.5s ease-in-out var(--delay, .9s) infinite;
+  }
+  .polaroid img { width: clamp(170px, 44vw, 230px); height: clamp(190px, 50vw, 260px); object-fit: cover; border-radius: 3px; display: block; }
+  .polaroid .pin {
+    position: absolute; top: -13px; left: 50%; transform: translateX(-50%); font-size: 24px;
+    filter: drop-shadow(0 3px 5px rgba(0,0,0,.25));
+  }
+  @keyframes dropIn { from{transform:translateY(-40px) rotate(calc(var(--tilt,-3deg) * 4)) scale(.85);opacity:0;} to{transform:translateY(0) rotate(var(--tilt,-3deg)) scale(1);opacity:1;} }
+  @keyframes floaty { 0%,100%{ transform: translateY(0) rotate(var(--tilt,-3deg)); } 50%{ transform: translateY(-9px) rotate(calc(var(--tilt,-3deg) + 1.5deg)); } }
+
+  /* захидал */
+  .letter {
+    position: relative; margin-top: 30px; max-width: 480px; width: 100%;
+    background: linear-gradient(180deg, #fffaf6, #fff1ea);
+    border: 1px solid rgba(232,184,109,.45); border-radius: 18px; padding: 30px 30px 24px;
+    box-shadow: 0 18px 44px rgba(142,46,80,.2); animation: riseIn .8s ease 1.5s both;
+  }
+  .letter::before {
+    content: "❤"; position: absolute; top: -17px; left: 50%; transform: translateX(-50%);
+    width: 36px; height: 36px; border-radius: 50%; font-size: 16px; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 35% 30%, #ff749e, #c41f55);
+    box-shadow: 0 6px 14px rgba(196,31,85,.4);
+  }
+  .letter-note {
+    font-family: "Playfair Display", serif; font-style: italic; font-weight: 500;
+    font-size: clamp(17px, 2.7vw, 21px); line-height: 1.75; color: var(--wine); min-height: 1.75em;
+  }
+  .letter-note .caret { display: inline-block; width: 2px; margin-left: 1px; background: var(--crimson); animation: blink .8s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .letter-sign {
+    font-family: "Playfair Display", serif; font-style: italic; font-weight: 600;
+    text-align: right; margin-top: 16px; color: var(--crimson); font-size: 16px;
+    opacity: 0; animation: riseIn .7s ease 2s forwards;
+  }
+
+  /* унаж буй дэлбээ / дээш хөөрөх зүрх / гялбаа */
+  .fx { position: fixed; z-index: 9; pointer-events: none; will-change: transform, opacity; }
+  @keyframes fxFall {
+    0%   { transform: translate(0, -40px) rotate(0); opacity: 0; }
+    12%  { opacity: .95; }
+    100% { transform: translate(var(--dx,0), 112vh) rotate(560deg); opacity: .6; }
+  }
+  @keyframes fxRise {
+    0%   { transform: translate(0, 0) scale(.55); opacity: 0; }
+    15%  { opacity: .95; }
+    100% { transform: translate(var(--dx,0), -114vh) scale(1.1) rotate(var(--rot,40deg)); opacity: 0; }
+  }
+  @keyframes fxSpark { 0%{transform:scale(.2);opacity:0;} 50%{opacity:1;} 100%{transform:scale(1.5);opacity:0;} }
+
+  /* хөдөлгөөн багасгах тохиргоог хүндэтгэх */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .001s !important; animation-iteration-count: 1 !important; }
+  }
+
+  @media (max-width: 480px) {
+    .card { padding: 32px 22px; }
+    .letter { padding: 26px 22px 22px; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="bg-hearts" id="bgHearts"></div>
+
+  <!-- ALHAM 1: BELDEH — баруунд бичих / зүүнд шууд харах -->
+  <main class="screen active" id="setup">
+    <div class="builder">
+      <header class="builder-head">
+        <span class="badge">💌 Хайрын захидал бичих</span>
+        <h1 class="brand">Хайрын захидал</h1>
+        <p class="hint">Баруун талд бичихэд зүүн талд шууд харагдана ✨</p>
+      </header>
+
+      <div class="builder-cols">
+        <!-- ЗҮҮН: урьдчилан харах -->
+        <div class="preview-pane">
+          <div class="pv-tabs">
+            <button class="pv-tab active" type="button" data-pv="proposal">💌 Санал</button>
+            <button class="pv-tab" type="button" data-pv="celebrate">💖 Баяр ёслол</button>
+          </div>
+          <div class="pv-stage">
+            <div class="pv-view" id="pvProposal">
+              <div class="card pv-card">
+                <div class="avatar" id="pvAvatar"><span class="avatar-fallback">💌</span></div>
+                <h1 class="pv-q" id="pvQuestion">Надтай болзоно уу? 🥹</h1>
+                <p class="sub">Зөвхөн нэг л зөв хариулт бий 😏</p>
+                <div class="btn-row">
+                  <button class="btn primary" type="button">Тийм ❤️</button>
+                  <button class="btn ghost" type="button">Үгүй</button>
+                </div>
+              </div>
+            </div>
+            <div class="pv-view" id="pvCelebrate" hidden>
+              <div class="cel-heart">💖</div>
+              <h2 class="cel-title" id="pvTitle">Чамайгаа хайрлаж байна 🥰</h2>
+              <div class="polaroids" id="pvGallery"></div>
+              <div class="letter">
+                <p class="letter-note" id="pvNote">Энэ агшнаас хойш өдөр бүр чамайг хайрлах болно. Чи бол миний хамгийн азтай учрал 💗</p>
+                <p class="letter-sign" id="pvSign">— Чиний хайрт 💌</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- БАРУУН: бичих форм -->
+        <div class="form-pane">
+          <div class="card">
+            <label class="field">
+              <span>Нэр</span>
+              <input id="nameInput" type="text" placeholder="ж: Сараа" maxlength="24" autocomplete="off" />
+            </label>
+
+            <label class="field">
+              <span>Асуулт (заавал биш)</span>
+              <input id="questionInput" type="text" placeholder="Надтай болзоно уу?" maxlength="70" autocomplete="off" />
+            </label>
+
+            <label class="field">
+              <span>"Тийм" гэсний дараах гарчиг (заавал биш)</span>
+              <input id="titleInput" type="text" placeholder="ж: Чамайгаа хайрлаж байна 🥰" maxlength="60" autocomplete="off" />
+            </label>
+
+            <label class="field">
+              <span>Бяцхан захидал (заавал биш)</span>
+              <textarea id="noteInput" placeholder="Зүрхнээсээ хэдэн үг бич..." maxlength="200"></textarea>
+            </label>
+
+            <label class="field">
+              <span>Хэнээс? (заавал биш)</span>
+              <input id="fromInput" type="text" placeholder="Чиний нэр" maxlength="24" autocomplete="off" />
+            </label>
+
+            <div class="field">
+              <span>Зураг (заавал биш)</span>
+              <div class="uploader" id="uploader">
+                <input id="photoInput" type="file" accept="image/*" multiple hidden />
+                <div class="uploader-inner">
+                  <span class="up-emoji">🖼️</span>
+                  <span>Зураг нэмэх — энд дарж сонгоно уу</span>
+                </div>
+              </div>
+              <div class="thumbs" id="thumbs"></div>
+            </div>
+
+            <button class="btn primary big" id="createBtn">Бэлэн боллоо 💌</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ALHAM 2: SANAL -->
+  <main class="screen" id="proposal">
+    <div class="card">
+      <button class="edit-link" id="editLink">✏️ Засах</button>
+      <div class="avatar" id="avatar"><span class="avatar-fallback">💌</span></div>
+      <h1 id="question">Надтай болзоно уу? 🥹</h1>
+      <p class="sub" id="counterText">Зөвхөн нэг л зөв хариулт бий 😏</p>
+      <div class="btn-row">
+        <button id="yesBtn" class="btn primary">Тийм ❤️</button>
+        <button id="noBtn" class="btn ghost">Үгүй</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ALHAM: TÖLBÖR (демо) -->
+  <main class="screen" id="payment">
+    <div class="card pay-card">
+      <button class="edit-link" id="payBack">✏️ Засах</button>
+      <span class="badge">🔒 Төлбөр</span>
+      <h1 class="brand pay-title">Бараг бэлэн!</h1>
+      <p class="hint">Захидлаа идэвхжүүлэхийн тулд төлбөрөө төлнө үү 💌</p>
+
+      <div class="order">
+        <div class="order-row">
+          <span>💌 Хайрын захидал <b id="orderName"></b></span>
+          <span class="order-price" id="orderPrice">9,900₮</span>
+        </div>
+      </div>
+
+      <div class="pay-tabs">
+        <button class="pay-tab active" type="button" data-pay="qpay">QPay</button>
+        <button class="pay-tab" type="button" data-pay="card">Карт</button>
+        <button class="pay-tab" type="button" data-pay="bank">Шилжүүлэг</button>
+      </div>
+
+      <!-- QPay -->
+      <div class="pay-method" id="payQpay">
+        <div class="qr-box"><div class="qr" id="qrCode"></div><div class="qr-logo">💗</div></div>
+        <p class="pay-note">Банкны аппаа нээгээд QR-ийг уншуулж <b id="qpayAmt">9,900₮</b> төлнө үү.<br>Хаан, TDB, Голомт, Хас — аль ч банк болно.</p>
+      </div>
+
+      <!-- Карт -->
+      <div class="pay-method" id="payCard" hidden>
+        <label class="field"><span>Картын дугаар</span>
+          <input id="ccNum" type="text" inputmode="numeric" placeholder="0000 0000 0000 0000" maxlength="19" autocomplete="off" /></label>
+        <div class="cc-row">
+          <label class="field"><span>Хүчинтэй (ММ/ЖЖ)</span>
+            <input id="ccExp" type="text" inputmode="numeric" placeholder="ММ/ЖЖ" maxlength="5" autocomplete="off" /></label>
+          <label class="field"><span>CVC</span>
+            <input id="ccCvc" type="text" inputmode="numeric" placeholder="•••" maxlength="4" autocomplete="off" /></label>
+        </div>
+        <label class="field"><span>Карт эзэмшигч</span>
+          <input id="ccName" type="text" placeholder="НЭР ОВОГ" autocomplete="off" /></label>
+      </div>
+
+      <!-- Банкны шилжүүлэг -->
+      <div class="pay-method" id="payBank" hidden>
+        <div class="bank-row"><span>Банк</span><b>Хаан банк</b></div>
+        <div class="bank-row"><span>Данс</span><b id="bankAcc">5000 1234 5678</b><button class="copy" type="button" data-copy="bankAcc">Хуулах</button></div>
+        <div class="bank-row"><span>Хүлээн авагч</span><b>Love Letter</b></div>
+        <div class="bank-row"><span>Гүйлгээний утга</span><b id="bankRef">LOVE-0000</b><button class="copy" type="button" data-copy="bankRef">Хуулах</button></div>
+        <div class="bank-row"><span>Дүн</span><b id="bankAmt">9,900₮</b></div>
+      </div>
+
+      <button class="btn primary big" id="payConfirm">9,900₮ төлөх</button>
+      <p class="pay-disclaimer">🔒 Энэ бол жишээ (демо) төлбөр. Бодит мөнгө шилжихгүй, мэдээлэл хадгалагдахгүй.</p>
+    </div>
+  </main>
+
+  <!-- ALHAM: HUVAALTSAH -->
+  <main class="screen" id="share">
+    <div class="card share-card">
+      <div class="cel-heart" style="font-size:54px">💌</div>
+      <h1 class="brand">Захидал бэлэн!</h1>
+      <p class="hint">Доорх QR эсвэл линкийг хайртдаа илгээ 💕</p>
+
+      <div class="qr-box"><div class="qr" id="shareQr"></div></div>
+
+      <div class="link-row">
+        <input id="shareLink" type="text" readonly aria-label="Хуваалцах линк" />
+        <button class="btn primary" id="copyLink" type="button">Хуулах</button>
+      </div>
+
+      <div class="share-actions">
+        <button class="btn ghost" id="openSelf" type="button">👀 Өөрөө нээж үзэх</button>
+        <button class="btn ghost" id="downloadQr" type="button">⬇️ QR татах</button>
+      </div>
+
+      <p class="pay-disclaimer">📎 Зураг линкэнд ороогүй. Линк бусдын утсан дээр ажиллахын тулд хуудсаа онлайн байршуулсан байх шаардлагатай. <button class="text-link" id="shareEdit" type="button">Засах</button></p>
+    </div>
+  </main>
+
+  <!-- ALHAM 3: BAYAR YOSLOL -->
+  <section class="screen celebrate" id="celebrate">
+    <div class="cel-stage">
+      <div class="cel-heart-wrap">
+        <span class="ring"></span><span class="ring"></span><span class="ring"></span>
+        <div class="cel-heart">💖</div>
+      </div>
+      <h2 class="cel-title" id="celebTitle">Мэдэж л байсан 🥰</h2>
+      <div class="polaroids" id="gallery"></div>
+      <div class="letter" id="letter">
+        <p class="letter-note" id="celebNote"></p>
+        <p class="letter-sign" id="celebSign">— Чиний хайрт 💌</p>
+      </div>
+    </div>
+  </section>
+
+<script>
+  /* ====================== Туслахууд ====================== */
+  const $ = (id) => document.getElementById(id);
+  const screens = { setup: $('setup'), payment: $('payment'), share: $('share'), proposal: $('proposal'), celebrate: $('celebrate') };
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function show(name) {
+    Object.values(screens).forEach(s => s.classList.remove('active'));
+    screens[name].classList.add('active');
+  }
+  const capFirst = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  const lowFirst = (s) => s ? s.charAt(0).toLowerCase() + s.slice(1) : s;
+
+  /* ====================== Арын зүрхнүүд ====================== */
+  (function makeBgHearts() {
+    const wrap = $('bgHearts');
+    const symbols = ['💗','💕','💖','🩷','❤️','💘'];
+    for (let i = 0; i < 16; i++) {
+      const h = document.createElement('span');
+      h.textContent = symbols[i % symbols.length];
+      h.style.left = Math.random() * 100 + 'vw';
+      h.style.fontSize = (16 + Math.random() * 24) + 'px';
+      h.style.animationDuration = (8 + Math.random() * 8) + 's';
+      h.style.animationDelay = (Math.random() * 9) + 's';
+      wrap.appendChild(h);
+    }
+  })();
+
+  /* ====================== Зураг нэмэх ====================== */
+  let photos = [];
+  const uploader = $('uploader'), photoInput = $('photoInput'), thumbs = $('thumbs');
+
+  uploader.addEventListener('click', () => photoInput.click());
+  photoInput.addEventListener('change', (e) => addFiles(e.target.files));
+  ['dragenter','dragover'].forEach(ev => uploader.addEventListener(ev, (e) => { e.preventDefault(); uploader.classList.add('drag'); }));
+  ['dragleave','drop'].forEach(ev => uploader.addEventListener(ev, (e) => { e.preventDefault(); uploader.classList.remove('drag'); }));
+  uploader.addEventListener('drop', (e) => { if (e.dataTransfer) addFiles(e.dataTransfer.files); });
+
+  function addFiles(fileList) {
+    [...fileList].forEach(file => {
+      if (!file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = () => { photos.push(reader.result); renderThumbs(); updatePreview(); };
+      reader.readAsDataURL(file);
+    });
+    photoInput.value = '';
+  }
+  function renderThumbs() {
+    thumbs.innerHTML = '';
+    photos.forEach((src, i) => {
+      const t = document.createElement('div');
+      t.className = 'thumb';
+      t.style.backgroundImage = `url(${src})`;
+      const x = document.createElement('button');
+      x.type = 'button'; x.textContent = '×'; x.title = 'Хасах';
+      x.addEventListener('click', (e) => { e.stopPropagation(); photos.splice(i, 1); renderThumbs(); updatePreview(); });
+      t.appendChild(x); thumbs.appendChild(t);
+    });
+  }
+
+  /* ====================== Агуулга цуглуулах ====================== */
+  let noteText = '';
+
+  function composed() {
+    const name  = $('nameInput').value.trim();
+    const q     = $('questionInput').value.trim() || 'Надтай болзоно уу?';
+    const title = $('titleInput').value.trim();
+    const note  = $('noteInput').value.trim();
+    const from  = $('fromInput').value.trim();
+    return {
+      question: name ? `${name}, ${lowFirst(q)} 🥹` : `${capFirst(q)} 🥹`,
+      title: title || (name ? `${name}, чамайгаа хайрлаж байна 🥰` : 'Чамайгаа хайрлаж байна 🥰'),
+      note: note || 'Энэ агшнаас хойш өдөр бүр чамайг хайрлах болно. Чи бол миний хамгийн азтай учрал 💗',
+      sign: from ? `— ${from} 💌` : '— Чиний хайрт 💌',
+    };
+  }
+
+  function setAvatar(el) {
+    if (photos.length) { el.classList.add('has-photo'); el.style.backgroundImage = `url(${photos[0]})`; }
+    else { el.classList.remove('has-photo'); el.style.backgroundImage = ''; }
+  }
+
+  function buildPolaroids(container) {
+    container.innerHTML = '';
+    photos.forEach((src, i) => {
+      const fig = document.createElement('div');
+      fig.className = 'polaroid';
+      fig.style.setProperty('--tilt', (i % 2 ? 1 : -1) * (3 + (i % 3)) + 'deg'); // тогтвортой налуу
+      fig.style.setProperty('--delay', (0.9 + i * 0.18) + 's');
+      const pin = document.createElement('span'); pin.className = 'pin'; pin.textContent = i % 2 ? '🌷' : '💗';
+      const img = document.createElement('img'); img.src = src;
+      fig.appendChild(pin); fig.appendChild(img); container.appendChild(fig);
+    });
+  }
+
+  /* ====================== Амьд урьдчилан харах ====================== */
+  function updatePreview() {
+    const c = composed();
+    $('pvQuestion').textContent = c.question;
+    $('pvTitle').textContent = c.title;
+    $('pvNote').textContent = c.note;
+    $('pvSign').textContent = c.sign;
+    setAvatar($('pvAvatar'));
+    buildPolaroids($('pvGallery'));
+  }
+
+  ['nameInput','questionInput','titleInput','noteInput','fromInput']
+    .forEach(id => $(id).addEventListener('input', updatePreview));
+
+  document.querySelectorAll('.pv-tab').forEach(tab => tab.addEventListener('click', () => {
+    document.querySelectorAll('.pv-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    $('pvProposal').hidden = tab.dataset.pv !== 'proposal';
+    $('pvCelebrate').hidden = tab.dataset.pv !== 'celebrate';
+  }));
+
+  /* ====================== Санал үүсгэх (бодит туршлага) ====================== */
+  $('createBtn').addEventListener('click', () => { buildProposal(); preparePayment(); show('payment'); });
+
+  function buildProposal() {
+    const c = composed();
+    $('question').textContent = c.question;
+    setAvatar($('avatar'));
+    $('celebTitle').textContent = c.title;
+    noteText = c.note;
+    $('celebSign').textContent = c.sign;
+    buildPolaroids($('gallery'));
+    resetNoBtn();
+  }
+
+  $('editLink').addEventListener('click', () => { resetNoBtn(); show('setup'); });
+
+  /* ====================== Төлбөр (демо) ====================== */
+  const PRICE = '9,900₮';
+  const payConfirm = $('payConfirm');
+  let orderRef = 'LOVE-' + Math.floor(1000 + Math.random() * 9000);
+
+  function preparePayment() {
+    const name = $('nameInput').value.trim();
+    $('orderName').textContent = name ? `(${name})` : '';
+    $('orderPrice').textContent = PRICE;
+    $('qpayAmt').textContent = PRICE;
+    $('bankAmt').textContent = PRICE;
+    $('bankRef').textContent = orderRef;
+    payConfirm.textContent = PRICE + ' төлөх';
+    payConfirm.disabled = false;
+    payConfirm.classList.remove('ok');
+    buildFakeQR($('qrCode'));
+  }
+
+  // QPay шиг харагдах QR (демо — зөвхөн чимэглэл)
+  function buildFakeQR(box) {
+    const n = 29, cell = 8, size = n * cell;
+    const finders = [[0, 0], [0, n - 7], [n - 7, 0]];
+    const inFinder = (r, c) => finders.find(([br, bc]) => r >= br && r < br + 7 && c >= bc && c < bc + 7);
+    const lo = Math.floor(n / 2) - 3, hi = Math.floor(n / 2) + 3;
+    let rects = '';
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        let dark = false;
+        const f = inFinder(r, c);
+        if (f) {
+          const i = r - f[0], j = c - f[1];
+          dark = (i === 0 || i === 6 || j === 0 || j === 6) || (i >= 2 && i <= 4 && j >= 2 && j <= 4);
+        } else if (r >= lo && r <= hi && c >= lo && c <= hi) {
+          dark = false; // голын лого хэсэг
+        } else {
+          dark = Math.random() < 0.46;
+        }
+        if (dark) rects += `<rect x="${c * cell}" y="${r * cell}" width="${cell}" height="${cell}"/>`;
+      }
+    }
+    box.innerHTML = `<svg viewBox="0 0 ${size} ${size}" width="100%" height="100%" fill="#3a1020">${rects}</svg>`;
+  }
+
+  // Төлбөрийн арга сэлгэх
+  document.querySelectorAll('.pay-tab').forEach(tab => tab.addEventListener('click', () => {
+    document.querySelectorAll('.pay-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const m = tab.dataset.pay;
+    $('payQpay').hidden = m !== 'qpay';
+    $('payCard').hidden = m !== 'card';
+    $('payBank').hidden = m !== 'bank';
+  }));
+
+  // Картын талбар форматлах
+  $('ccNum').addEventListener('input', (e) => {
+    const v = e.target.value.replace(/\D/g, '').slice(0, 16);
+    e.target.value = v.replace(/(.{4})/g, '$1 ').trim();
+  });
+  $('ccExp').addEventListener('input', (e) => {
+    let v = e.target.value.replace(/\D/g, '').slice(0, 4);
+    if (v.length >= 3) v = v.slice(0, 2) + '/' + v.slice(2);
+    e.target.value = v;
+  });
+  $('ccCvc').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4); });
+
+  // Хуулах товчнууд
+  document.querySelectorAll('.copy').forEach(b => b.addEventListener('click', () => {
+    const txt = $(b.dataset.copy).textContent;
+    if (navigator.clipboard) navigator.clipboard.writeText(txt).catch(() => {});
+    const old = b.textContent; b.textContent = 'Хууллаа ✓';
+    setTimeout(() => { b.textContent = old; }, 1200);
+  }));
+
+  $('payBack').addEventListener('click', () => show('setup'));
+
+  // Төлбөр баталгаажуулах (демо: хуурамч боловсруулалт → санал)
+  payConfirm.addEventListener('click', () => {
+    if (payConfirm.disabled) return;
+    payConfirm.disabled = true;
+    payConfirm.textContent = 'Баталгаажуулж байна…';
+    setTimeout(() => {
+      payConfirm.textContent = '✓ Төлбөр амжилттай';
+      payConfirm.classList.add('ok');
+      setTimeout(() => { prepareShare(); show('share'); }, 850);
+    }, 1300);
+  });
+
+  /* ====================== Хуваалцах: линк + QR ====================== */
+  // Бүх ТЕКСТ агуулгыг URL-д юникод-аюулгүй base64-аар шифрлэнэ (зураг ороогүй)
+  function encodeData(obj) {
+    const json = JSON.stringify(obj);
+    return btoa(unescape(encodeURIComponent(json)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function decodeData(str) {
+    try {
+      str = str.replace(/-/g, '+').replace(/_/g, '/');
+      return JSON.parse(decodeURIComponent(escape(atob(str))));
+    } catch (e) { return null; }
+  }
+  function shareLinkFor(encoded) {
+    const base = (location.origin && location.origin !== 'null')
+      ? location.origin + location.pathname
+      : location.href.split('#')[0];
+    return base + '#d=' + encoded;
+  }
+
+  // Жинхэнэ QR (локалд үүснэ). Ном сан ачаалагдаагүй бол зурагт API руу шилжинэ.
+  function realQR(box, text) {
+    box.innerHTML = '';
+    if (typeof qrcode === 'function') {
+      try {
+        const qr = qrcode(0, 'M');
+        qr.addData(text); qr.make();
+        const src = qr.createDataURL(6, 2);
+        box.innerHTML = `<img src="${src}" alt="QR код" style="width:100%;height:100%;image-rendering:pixelated;border-radius:6px;">`;
+        return;
+      } catch (e) {}
+    }
+    const img = document.createElement('img');
+    img.alt = 'QR код'; img.style.width = '100%'; img.style.height = '100%'; img.style.borderRadius = '6px';
+    img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=' + encodeURIComponent(text);
+    box.appendChild(img);
+  }
+
+  function prepareShare() {
+    const c = composed();
+    const encoded = encodeData({ q: c.question, t: c.title, note: c.note, s: c.sign });
+    const link = shareLinkFor(encoded);
+    $('shareLink').value = link;
+    realQR($('shareQr'), link);
+  }
+
+  $('copyLink').addEventListener('click', () => {
+    const inp = $('shareLink');
+    inp.select(); inp.setSelectionRange(0, 99999);
+    if (navigator.clipboard) navigator.clipboard.writeText(inp.value).catch(() => {});
+    else document.execCommand('copy');
+    const b = $('copyLink'); const old = b.textContent;
+    b.textContent = 'Хууллаа ✓';
+    setTimeout(() => { b.textContent = old; }, 1300);
+  });
+
+  $('openSelf').addEventListener('click', () => show('proposal'));
+  $('shareEdit').addEventListener('click', () => show('setup'));
+
+  $('downloadQr').addEventListener('click', () => {
+    const link = $('shareLink').value;
+    let dataUrl = '';
+    if (typeof qrcode === 'function') {
+      try { const qr = qrcode(0, 'M'); qr.addData(link); qr.make(); dataUrl = qr.createDataURL(9, 3); } catch (e) {}
+    }
+    if (!dataUrl) dataUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=480x480&data=' + encodeURIComponent(link);
+    const a = document.createElement('a');
+    a.href = dataUrl; a.download = 'hairyn-zahidal-qr.gif';
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+
+  // Хуваалцсан агуулгыг саналын дэлгэцэд тавих (хүлээн авагчийн горим)
+  function applyShared(data) {
+    $('question').textContent = data.q || 'Надтай болзоно уу? 🥹';
+    $('celebTitle').textContent = data.t || 'Чамайгаа хайрлаж байна 🥰';
+    noteText = data.note || '';
+    $('celebSign').textContent = data.s || '— Чиний хайрт 💌';
+    setAvatar($('avatar'));       // зураг байхгүй → 💌 fallback
+    buildPolaroids($('gallery')); // хоосон
+    resetNoBtn();
+  }
+
+  /* ====================== Зугтдаг "Үгүй" товч ====================== */
+  const noBtn = $('noBtn'), yesBtn = $('yesBtn'), counterText = $('counterText');
+  let dodges = 0;
+  let pointer = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+
+  const taunts = ['Үгүй','Итгэлтэй байна уу? 🤨','Дахиад бод доо...','Бариад үзээч 😜','Болихгүй шүү!','Хэхэ, оролдсоор л 🏃','Хайр чамайг хүлээж байна 💞','Тийм гэж дараач ээ 🥺','Зүгээр л Тийм дар!'];
+  const counterLines = ['Хэхэ, тэгж амар барихгүй ээ 🏃‍♀️','Чи яасан зөрүүд юм бэ 😂','"Тийм" товч улам томорсоор... 👀','Бариад үз дээ, чадахгүй шүү 😌','Цаг үрэхээ боль, Тийм гэж дар 💗','Зүрх минь хүлээгээд ядарлаа 🥹'];
+
+  function resetNoBtn() {
+    dodges = 0;
+    noBtn.classList.remove('loose'); noBtn.removeAttribute('style'); noBtn.textContent = 'Үгүй';
+    yesBtn.style.transform = ''; counterText.textContent = 'Зөвхөн нэг л зөв хариулт бий 😏';
+  }
+  function makeLoose() {
+    if (!noBtn.classList.contains('loose')) {
+      const r = noBtn.getBoundingClientRect();
+      noBtn.classList.add('loose'); noBtn.style.top = r.top + 'px'; noBtn.style.left = r.left + 'px';
+    }
+  }
+  function dodge() {
+    makeLoose(); dodges++;
+    const m = 16, bw = noBtn.offsetWidth, bh = noBtn.offsetHeight;
+    const zoneW = Math.min(window.innerWidth - 2*m - bw, 760);
+    const zoneH = Math.min(window.innerHeight - 2*m - bh, 420);
+    const zoneX = (window.innerWidth - bw) / 2 - zoneW / 2;
+    const zoneY = (window.innerHeight - bh) / 2 - zoneH / 2;
+    let best = null, bestDist = -1;
+    for (let i = 0; i < 12; i++) {
+      const tx = zoneX + Math.random() * Math.max(0, zoneW);
+      const ty = zoneY + Math.random() * Math.max(0, zoneH);
+      const ddx = (tx + bw/2) - pointer.x, ddy = (ty + bh/2) - pointer.y;
+      const dist = ddx*ddx + ddy*ddy;
+      if (dist > bestDist) { bestDist = dist; best = { x: tx, y: ty }; }
+    }
+    const maxX = window.innerWidth - bw - m, maxY = window.innerHeight - bh - m;
+    noBtn.style.left = Math.min(Math.max(m, best.x), maxX) + 'px';
+    noBtn.style.top  = Math.min(Math.max(m, best.y), maxY) + 'px';
+    noBtn.style.transform = 'rotate(' + (Math.random()*20 - 10) + 'deg)';
+    noBtn.textContent = taunts[dodges % taunts.length];
+    const maxScale = Math.min(window.innerWidth, window.innerHeight) / yesBtn.offsetWidth * 0.7;
+    yesBtn.style.transform = 'scale(' + Math.min(1 + dodges*0.1, maxScale) + ')';
+    counterText.textContent = counterLines[dodges % counterLines.length];
+  }
+  document.addEventListener('mousemove', (e) => { pointer.x = e.clientX; pointer.y = e.clientY; });
+  noBtn.addEventListener('mousedown', (e) => { pointer.x = e.clientX; pointer.y = e.clientY; e.preventDefault(); dodge(); });
+  noBtn.addEventListener('touchstart', (e) => {
+    const t = e.touches[0]; if (t) { pointer.x = t.clientX; pointer.y = t.clientY; }
+    e.preventDefault(); dodge();
+  }, { passive: false });
+  window.addEventListener('resize', () => {
+    if (!noBtn.classList.contains('loose')) return;
+    const m = 16;
+    const maxX = Math.max(m, window.innerWidth - noBtn.offsetWidth - m);
+    const maxY = Math.max(m, window.innerHeight - noBtn.offsetHeight - m);
+    noBtn.style.left = Math.min(parseFloat(noBtn.style.left) || m, maxX) + 'px';
+    noBtn.style.top  = Math.min(parseFloat(noBtn.style.top) || m, maxY) + 'px';
+  });
+
+  /* ====================== "Тийм" → баяр ёслол ====================== */
+  yesBtn.addEventListener('click', () => { show('celebrate'); celebrate(); });
+
+  function celebrate() {
+    // захидлыг гоё бичгээр аажмаар "бичих"
+    const noteEl = $('celebNote');
+    if (reduced) {
+      noteEl.textContent = noteText;
+      startAmbient(false);
+      return;
+    }
+    noteEl.innerHTML = '<span class="caret">&nbsp;</span>';
+    const chars = Array.from(noteText);
+    let i = 0;
+    setTimeout(() => {
+      const typer = setInterval(() => {
+        noteEl.innerHTML = chars.slice(0, ++i).join('') + (i < chars.length ? '<span class="caret">&nbsp;</span>' : '');
+        if (i >= chars.length) clearInterval(typer);
+      }, 45);
+    }, 2100);
+    startAmbient(true);
+  }
+
+  /* ---------- дэлбээ / зүрх / гялбаа ---------- */
+  let ambientTimer = null;
+  const petals = ['🌸','🌷','💮','🌹','🏵️'];
+  const hearts = ['💖','💕','💗','🩷','❤️'];
+
+  function spawn(kind) {
+    const el = document.createElement('div');
+    el.className = 'fx';
+    el.style.left = Math.random() * 100 + 'vw';
+    if (kind === 'fall') {
+      el.textContent = petals[Math.floor(Math.random()*petals.length)];
+      el.style.fontSize = (16 + Math.random()*20) + 'px';
+      el.style.top = '-40px';
+      el.style.setProperty('--dx', (Math.random()*200 - 100) + 'px');
+      el.style.animation = `fxFall ${4 + Math.random()*4}s linear forwards`;
+    } else if (kind === 'rise') {
+      el.textContent = hearts[Math.floor(Math.random()*hearts.length)];
+      el.style.fontSize = (16 + Math.random()*24) + 'px';
+      el.style.top = '100vh';
+      el.style.setProperty('--dx', (Math.random()*160 - 80) + 'px');
+      el.style.setProperty('--rot', (Math.random()*80 - 40) + 'deg');
+      el.style.animation = `fxRise ${4 + Math.random()*3.5}s ease-in forwards`;
+    } else {
+      el.textContent = '✨';
+      el.style.fontSize = (12 + Math.random()*16) + 'px';
+      el.style.top = (Math.random()*70 + 5) + 'vh';
+      el.style.animation = `fxSpark ${1 + Math.random()*1.5}s ease-out forwards`;
+    }
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 8500);
+  }
+
+  function startAmbient(withBurst) {
+    if (withBurst) {
+      for (let i = 0; i < 60; i++) setTimeout(() => spawn('rise'), i * 26);
+      for (let i = 0; i < 24; i++) setTimeout(() => spawn('fall'), i * 60);
+    }
+    if (ambientTimer) clearInterval(ambientTimer);
+    ambientTimer = setInterval(() => {
+      spawn('fall');
+      if (Math.random() < 0.7) spawn('rise');
+      if (Math.random() < 0.25) spawn('spark');
+    }, 360);
+  }
+
+  /* эхлэхэд урьдчилан харахыг дүүргэх */
+  updatePreview();
+
+  /* Хүлээн авагчийн горим: URL-д шифрлэгдсэн захидал байвал шууд санал руу */
+  (function checkShared() {
+    const m = location.hash.match(/[#&]d=([^&]+)/);
+    if (!m) return;
+    const data = decodeData(m[1]);
+    if (!data) return;
+    applyShared(data);
+    $('editLink').style.display = 'none';   // хүлээн авагчид засах хэрэггүй
+    show('proposal');
+  })();
+</script>
+</body>
+</html>

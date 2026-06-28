@@ -905,11 +905,17 @@
   async function prepareShare() {
     $('shareLink').value = 'Бэлдэж байна…';
     $('shareQr').innerHTML = '';
-    const c = composed();
     const compact = [];
     for (const p of photos.slice(0, 4)) compact.push(await compressImage(p, 380, 0.5));
-    const encoded = encodeData({ q: c.question, t: c.title, note: c.note, s: c.sign, p: compact });
-    const link = shareLinkFor(encoded);
+    const payload = {
+      n: $('nameInput').value.trim(),
+      q: $('questionInput').value.trim(),
+      t: $('titleInput').value.trim(),
+      note: $('noteInput').value.trim(),
+      f: $('fromInput').value.trim(),
+      p: compact,
+    };
+    const link = shareLinkFor(encodeData(payload));
     $('shareLink').value = link;
     realQR($('shareQr'), link);
     $('shareNote').textContent = compact.length
@@ -943,15 +949,16 @@
   });
 
   // Хуваалцсан агуулгыг саналын дэлгэцэд тавих (хүлээн авагчийн горим)
-  function applyShared(data) {
-    photos = Array.isArray(data.p) ? data.p : [];   // линкэнд орсон зургууд
-    $('question').textContent = data.q || 'Надтай болзоно уу? 🥹';
-    $('celebTitle').textContent = data.t || 'Чамайгаа хайрлаж байна 🥰';
-    noteText = data.note || '';
-    $('celebSign').textContent = data.s || '— Чиний хайрт 💌';
-    setAvatar($('avatar'));
-    buildPolaroids($('gallery'));
-    resetNoBtn();
+  // Линкээс ирсэн агуулгыг ФОРМ-д буцааж дүүргэнэ (хэрэглэгч засаж болно)
+  function fillForm(data) {
+    $('nameInput').value     = data.n || '';
+    $('questionInput').value = data.q || '';
+    $('titleInput').value    = data.t || '';
+    $('noteInput').value     = data.note || '';
+    $('fromInput').value     = data.f || '';
+    photos = Array.isArray(data.p) ? data.p : [];
+    renderThumbs();
+    updatePreview();
   }
 
   /* ====================== Зугтдаг "Үгүй" товч ====================== */
@@ -1089,9 +1096,9 @@
     if (!m) return;
     const data = decodeData(m[1]);
     if (!data) return;
-    applyShared(data);
-    $('editLink').style.display = 'none';   // хүлээн авагчид засах хэрэггүй
-    show('proposal');
+    fillForm(data);     // форм + preview-г дүүргэнэ (засаж болно)
+    buildProposal();    // саналыг бэлдэнэ
+    show('proposal');   // эхлээд гэнэтийн саналыг харуулна — "✏️ Засах"-аар засна
   })();
 </script>
 </body>

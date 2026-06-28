@@ -318,6 +318,24 @@
   .qr-msg b { color: var(--crimson); }
   .edit-link-row { margin: -4px 0 14px; font-size: 12.5px; }
 
+  /* ---------- хөгжмийн товч ---------- */
+  .music-toggle {
+    position: fixed; bottom: 18px; right: 18px; z-index: 50;
+    width: 52px; height: 52px; border-radius: 50%; border: none; cursor: pointer;
+    background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 8px 20px rgba(142, 46, 80, 0.3); font-size: 22px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .15s, box-shadow .15s, opacity .15s;
+  }
+  .music-toggle:hover { transform: scale(1.08); }
+  .music-toggle:active { transform: scale(.94); }
+  .music-toggle.off { opacity: .65; }
+  .music-toggle.playing { animation: musicPulse 1.5s ease-in-out infinite; }
+  @keyframes musicPulse {
+    0%, 100% { box-shadow: 0 8px 20px rgba(214, 51, 108, .3); }
+    50%      { box-shadow: 0 8px 30px rgba(214, 51, 108, .6); }
+  }
+
   /* ====================================================== */
   /* ===============  БАЯР ЁСЛОЛ (signature)  ============== */
   /* ====================================================== */
@@ -427,6 +445,8 @@
 <body>
 
   <div class="bg-hearts" id="bgHearts"></div>
+
+  <button id="musicToggle" class="music-toggle" type="button" aria-label="Хөгжим" title="Хөгжим тоглуулах">🎵</button>
 
   <!-- ALHAM 1: BELDEH — баруунд бичих / зүүнд шууд харах -->
   <main class="screen active" id="setup">
@@ -1033,7 +1053,11 @@
   });
 
   /* ====================== "Тийм" → баяр ёслол ====================== */
-  yesBtn.addEventListener('click', () => { show('celebrate'); celebrate(); });
+  yesBtn.addEventListener('click', () => {
+    show('celebrate'); celebrate();
+    if (!musicPlaying && !musicOptedOut) setMusicUI(true);  // мөчид нийцүүлэн хөгжим
+    musicSwell();
+  });
 
   function celebrate() {
     // захидлыг гоё бичгээр аажмаар "бичих"
@@ -1099,6 +1123,90 @@
       if (Math.random() < 0.25) spawn('spark');
     }, 360);
   }
+
+  /* ====================== Дуу хөгжим (Web Audio синтез) ====================== */
+  let actx = null, master = null, schedTimer = null;
+  let musicPlaying = false, musicOptedOut = false;
+  let mStep = 0, mNext = 0;
+  const M_STEP = 0.26, M_PER_CHORD = 8;
+  const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
+  // I–V–vi–IV (C мажор) — сонгодог сэтгэл хөдөлгөм хөвүүлэлт
+  const CHORDS = [
+    { bass: 36, triad: [60, 64, 67, 72] }, // C
+    { bass: 31, triad: [55, 59, 62, 67] }, // G
+    { bass: 33, triad: [57, 60, 64, 69] }, // Am
+    { bass: 29, triad: [53, 57, 60, 65] }, // F
+  ];
+  const ARP = [0, 1, 2, 3, 2, 1, 2, 3];
+
+  function mVoice(freq, t, dur, vol, type) {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    o.connect(g); g.connect(master);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.start(t); o.stop(t + dur + 0.06);
+  }
+  function mSchedStep(s, t) {
+    const ch = CHORDS[Math.floor(s / M_PER_CHORD) % CHORDS.length];
+    const beat = s % M_PER_CHORD;
+    if (beat === 0 || beat === 4) mVoice(midi(ch.bass), t, 1.2, 0.10, 'triangle');
+    const note = ch.triad[ARP[beat % ARP.length]];
+    mVoice(midi(note), t, 0.5, 0.06, 'sine');
+    if (beat === 2 || beat === 6) mVoice(midi(note + 12), t, 0.7, 0.03, 'sine');
+  }
+  function mScheduler() {
+    while (mNext < actx.currentTime + 0.25) {
+      mSchedStep(mStep, mNext);
+      mNext += M_STEP;
+      mStep = (mStep + 1) % (M_PER_CHORD * CHORDS.length);
+    }
+    schedTimer = setTimeout(mScheduler, 30);
+  }
+  function startMusic() {
+    try {
+      if (!actx) {
+        actx = new (window.AudioContext || window.webkitAudioContext)();
+        master = actx.createGain();
+        master.gain.value = 0.0001;
+        master.connect(actx.destination);
+      }
+      if (actx.state === 'suspended') actx.resume();
+      mNext = actx.currentTime + 0.1;
+      if (!schedTimer) mScheduler();
+      master.gain.cancelScheduledValues(actx.currentTime);
+      master.gain.setValueAtTime(Math.max(master.gain.value, 0.0001), actx.currentTime);
+      master.gain.exponentialRampToValueAtTime(0.13, actx.currentTime + 1.4);
+      musicPlaying = true;
+      return true;
+    } catch (e) { return false; }
+  }
+  function stopMusic() {
+    if (!actx) { musicPlaying = false; return; }
+    master.gain.cancelScheduledValues(actx.currentTime);
+    master.gain.setValueAtTime(master.gain.value, actx.currentTime);
+    master.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + 0.5);
+    clearTimeout(schedTimer); schedTimer = null;
+    musicPlaying = false;
+  }
+  function musicSwell() {
+    if (musicPlaying && actx) {
+      master.gain.cancelScheduledValues(actx.currentTime);
+      master.gain.setValueAtTime(master.gain.value, actx.currentTime);
+      master.gain.exponentialRampToValueAtTime(0.2, actx.currentTime + 1.6);
+    }
+  }
+  function setMusicUI(on) {
+    const b = $('musicToggle');
+    if (on) {
+      if (startMusic()) { b.textContent = '🎶'; b.classList.add('playing'); b.classList.remove('off'); }
+    } else {
+      stopMusic(); musicOptedOut = true;
+      b.textContent = '🔇'; b.classList.remove('playing'); b.classList.add('off');
+    }
+  }
+  $('musicToggle').addEventListener('click', () => setMusicUI(!musicPlaying));
 
   /* эхлэхэд урьдчилан харахыг дүүргэх */
   updatePreview();

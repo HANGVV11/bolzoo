@@ -12,6 +12,10 @@
 <!-- QR код үүсгэгч (агуулга нь локалд шифрлэгдэнэ; интернэт байхгүй бол fallback зурагт API) -->
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 
+<!-- YouTube тоглуулагч (сонгосон дууг тоглуулна) -->
+<script>window.ytApiReady=false;function onYouTubeIframeAPIReady(){window.ytApiReady=true;if(window.__ytInit)window.__ytInit();}</script>
+<script src="https://www.youtube.com/iframe_api"></script>
+
 <style>
   :root {
     --blush:  #ffe4ec;
@@ -336,6 +340,18 @@
     50%      { box-shadow: 0 8px 30px rgba(214, 51, 108, .6); }
   }
 
+  /* ---------- YouTube тоглуулагч ---------- */
+  .yt-wrap {
+    position: fixed; bottom: 18px; left: 18px; z-index: 50;
+    width: 210px; border-radius: 14px; overflow: hidden; line-height: 0;
+    background: #000; box-shadow: 0 10px 26px rgba(142, 46, 80, .35);
+  }
+  .yt-wrap iframe { display: block; width: 210px; height: 118px; border: 0; }
+  @media (max-width: 520px) {
+    .yt-wrap { width: 150px; }
+    .yt-wrap iframe { width: 150px; height: 85px; }
+  }
+
   /* ====================================================== */
   /* ===============  БАЯР ЁСЛОЛ (signature)  ============== */
   /* ====================================================== */
@@ -447,6 +463,7 @@
   <div class="bg-hearts" id="bgHearts"></div>
 
   <button id="musicToggle" class="music-toggle" type="button" aria-label="Хөгжим" title="Хөгжим тоглуулах">🎵</button>
+  <div id="ytWrap" class="yt-wrap" hidden><div id="ytPlayer"></div></div>
 
   <!-- ALHAM 1: BELDEH — баруунд бичих / зүүнд шууд харах -->
   <main class="screen active" id="setup">
@@ -514,6 +531,11 @@
             <label class="field">
               <span>Хэнээс? (заавал биш)</span>
               <input id="fromInput" type="text" placeholder="Чиний нэр" maxlength="24" autocomplete="off" />
+            </label>
+
+            <label class="field">
+              <span>🎵 YouTube дуу (заавал биш)</span>
+              <input id="ytInput" type="text" placeholder="YouTube линкээ наа..." maxlength="120" autocomplete="off" />
             </label>
 
             <div class="field">
@@ -772,6 +794,7 @@
     noteText = c.note;
     $('celebSign').textContent = c.sign;
     buildPolaroids($('gallery'));
+    setupSong(parseYouTube($('ytInput').value));   // сонгосон YouTube дуу
     resetNoBtn();
   }
 
@@ -936,6 +959,7 @@
       t: $('titleInput').value.trim(),
       note: $('noteInput').value.trim(),
       f: $('fromInput').value.trim(),
+      y: parseYouTube($('ytInput').value),
       p: compact,
     };
     const link = shareLinkFor(encodeData(payload));
@@ -989,6 +1013,7 @@
     $('titleInput').value    = data.t || '';
     $('noteInput').value     = data.note || '';
     $('fromInput').value     = data.f || '';
+    $('ytInput').value       = data.y ? ('https://youtu.be/' + data.y) : '';
     photos = Array.isArray(data.p) ? data.p : [];
     renderThumbs();
     updatePreview();
@@ -1055,7 +1080,7 @@
   /* ====================== "Тийм" → баяр ёслол ====================== */
   yesBtn.addEventListener('click', () => {
     show('celebrate'); celebrate();
-    if (!musicPlaying && !musicOptedOut) setMusicUI(true);  // мөчид нийцүүлэн хөгжим
+    if (!musicPlaying && !musicOptedOut) musicPlay();  // мөчид нийцүүлэн хөгжим
     musicSwell();
   });
 
@@ -1127,6 +1152,7 @@
   /* ====================== Дуу хөгжим (Web Audio синтез) ====================== */
   let actx = null, master = null, schedTimer = null;
   let musicPlaying = false, musicOptedOut = false;
+  let currentYtId = '', ytPlayer = null, pendingYtId = '';
   let mStep = 0, mNext = 0;
   const BEAT = 0.54;                  // удаан, уянгалаг хэмнэл
   const BEATS = 32;
@@ -1230,7 +1256,7 @@
     }
     schedTimer = setTimeout(mScheduler, 30);
   }
-  function startMusic() {
+  function startSynth() {
     try {
       if (!actx) {
         actx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1252,35 +1278,72 @@
       master.gain.cancelScheduledValues(actx.currentTime);
       master.gain.setValueAtTime(Math.max(master.gain.value, 0.0001), actx.currentTime);
       master.gain.exponentialRampToValueAtTime(0.13, actx.currentTime + 1.4);
-      musicPlaying = true;
       return true;
     } catch (e) { return false; }
   }
-  function stopMusic() {
-    if (!actx) { musicPlaying = false; return; }
+  function stopSynth() {
+    if (!actx) return;
     master.gain.cancelScheduledValues(actx.currentTime);
     master.gain.setValueAtTime(master.gain.value, actx.currentTime);
     master.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + 0.5);
     clearTimeout(schedTimer); schedTimer = null;
-    musicPlaying = false;
   }
   function musicSwell() {
-    if (musicPlaying && actx) {
+    if (musicPlaying && !currentYtId && actx) {
       master.gain.cancelScheduledValues(actx.currentTime);
       master.gain.setValueAtTime(master.gain.value, actx.currentTime);
       master.gain.exponentialRampToValueAtTime(0.2, actx.currentTime + 1.6);
     }
   }
-  function setMusicUI(on) {
-    const b = $('musicToggle');
-    if (on) {
-      if (startMusic()) { b.textContent = '🎶'; b.classList.add('playing'); b.classList.remove('off'); }
+
+  // ---- YouTube дуу ----
+  function parseYouTube(s) {
+    if (!s) return '';
+    s = s.trim();
+    const m = s.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|[?&]v=)([A-Za-z0-9_-]{11})/);
+    if (m) return m[1];
+    return /^[A-Za-z0-9_-]{11}$/.test(s) ? s : '';
+  }
+  function ytPlay(id) {
+    if (!window.ytApiReady || !window.YT || !window.YT.Player) { pendingYtId = id; return; }
+    $('ytWrap').hidden = false;
+    if (!ytPlayer) {
+      ytPlayer = new YT.Player('ytPlayer', {
+        width: '210', height: '118', videoId: id,
+        playerVars: { autoplay: 1, controls: 1, rel: 0, playsinline: 1, modestbranding: 1 },
+        events: { onReady: (e) => { if (musicPlaying) e.target.playVideo(); } }
+      });
     } else {
-      stopMusic(); musicOptedOut = true;
-      b.textContent = '🔇'; b.classList.remove('playing'); b.classList.add('off');
+      const cur = ytPlayer.getVideoData ? (ytPlayer.getVideoData().video_id || '') : '';
+      if (cur === id && ytPlayer.playVideo) ytPlayer.playVideo();
+      else if (ytPlayer.loadVideoById) ytPlayer.loadVideoById(id);
     }
   }
-  $('musicToggle').addEventListener('click', () => setMusicUI(!musicPlaying));
+  window.__ytInit = function () {
+    if (pendingYtId) { const id = pendingYtId; pendingYtId = ''; if (musicPlaying) ytPlay(id); }
+  };
+  function setupSong(id) {
+    currentYtId = id || '';
+    if (!currentYtId) { const w = $('ytWrap'); if (w) w.hidden = true; }
+  }
+
+  // ---- нэгдсэн удирдлага (YouTube эсвэл нийлэгжүүлсэн аялгуу) ----
+  function updateMusicBtn(on) {
+    const b = $('musicToggle');
+    if (on) { b.textContent = '🎶'; b.classList.add('playing'); b.classList.remove('off'); }
+    else { b.textContent = '🔇'; b.classList.remove('playing'); b.classList.add('off'); }
+  }
+  function musicPlay() {
+    musicPlaying = true; musicOptedOut = false; updateMusicBtn(true);
+    if (currentYtId) { stopSynth(); ytPlay(currentYtId); }
+    else startSynth();
+  }
+  function musicPause() {
+    musicPlaying = false; musicOptedOut = true; updateMusicBtn(false);
+    if (currentYtId && ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+    else stopSynth();
+  }
+  $('musicToggle').addEventListener('click', () => { musicPlaying ? musicPause() : musicPlay(); });
 
   /* эхлэхэд урьдчилан харахыг дүүргэх */
   updatePreview();

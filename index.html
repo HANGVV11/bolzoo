@@ -311,6 +311,11 @@
     background: none; border: none; color: var(--crimson); font-family: inherit; font-weight: 600;
     cursor: pointer; text-decoration: underline; padding: 0; font-size: inherit;
   }
+  .qr-msg {
+    display: flex; align-items: center; justify-content: center; height: 100%;
+    padding: 14px; font-size: 13px; color: var(--ink-soft); line-height: 1.6; text-align: center;
+  }
+  .qr-msg b { color: var(--crimson); }
 
   /* ====================================================== */
   /* ===============  БАЯР ЁСЛОЛ (signature)  ============== */
@@ -597,7 +602,7 @@
         <button class="btn ghost" id="downloadQr" type="button">⬇️ QR татах</button>
       </div>
 
-      <p class="pay-disclaimer">📎 Зураг линкэнд ороогүй. Линк бусдын утсан дээр ажиллахын тулд хуудсаа онлайн байршуулсан байх шаардлагатай. <button class="text-link" id="shareEdit" type="button">Засах</button></p>
+      <p class="pay-disclaimer">📎 <span id="shareNote">Зураг линкэнд багтсан. Линк аль ч утсан дээр ажиллана 💕</span> <button class="text-link" id="shareEdit" type="button">Засах</button></p>
     </div>
   </main>
 
@@ -856,7 +861,7 @@
     return base + '#d=' + encoded;
   }
 
-  // Жинхэнэ QR (локалд үүснэ). Ном сан ачаалагдаагүй бол зурагт API руу шилжинэ.
+  // Жинхэнэ QR (локалд үүснэ). Хэт урт (зурагтай) бол мессеж харуулна.
   function realQR(box, text) {
     box.innerHTML = '';
     if (typeof qrcode === 'function') {
@@ -866,20 +871,50 @@
         const src = qr.createDataURL(6, 2);
         box.innerHTML = `<img src="${src}" alt="QR код" style="width:100%;height:100%;image-rendering:pixelated;border-radius:6px;">`;
         return;
-      } catch (e) {}
+      } catch (e) { /* хэт урт — ихэвчлэн зурагтай үед */ }
+    } else if (text.length < 1200) {
+      const img = document.createElement('img');
+      img.alt = 'QR код'; img.style.width = '100%'; img.style.height = '100%'; img.style.borderRadius = '6px';
+      img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=' + encodeURIComponent(text);
+      box.appendChild(img);
+      return;
     }
-    const img = document.createElement('img');
-    img.alt = 'QR код'; img.style.width = '100%'; img.style.height = '100%'; img.style.borderRadius = '6px';
-    img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=' + encodeURIComponent(text);
-    box.appendChild(img);
+    box.innerHTML = '<div class="qr-msg">📷 Зурагтай учир QR-т багтсангүй.<br>Доорх <b>линкээ хуулж</b> илгээгээрэй 💌</div>';
   }
 
-  function prepareShare() {
+  // Зургийг canvas-аар жижигрүүлж, JPEG болгон шахна (линкэнд багтаахын тулд)
+  function compressImage(dataUrl, maxDim, quality) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        const scale = Math.min(1, maxDim / Math.max(w, h));
+        w = Math.max(1, Math.round(w * scale));
+        h = Math.max(1, Math.round(h * scale));
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        try { resolve(cv.toDataURL('image/jpeg', quality)); }
+        catch (e) { resolve(dataUrl); }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
+  async function prepareShare() {
+    $('shareLink').value = 'Бэлдэж байна…';
+    $('shareQr').innerHTML = '';
     const c = composed();
-    const encoded = encodeData({ q: c.question, t: c.title, note: c.note, s: c.sign });
+    const compact = [];
+    for (const p of photos.slice(0, 4)) compact.push(await compressImage(p, 380, 0.5));
+    const encoded = encodeData({ q: c.question, t: c.title, note: c.note, s: c.sign, p: compact });
     const link = shareLinkFor(encoded);
     $('shareLink').value = link;
     realQR($('shareQr'), link);
+    $('shareNote').textContent = compact.length
+      ? 'Зураг линкэнд багтсан (шахагдсан). Зурагтай үед QR ажиллахгүй тул линкээ хуулж илгээ. Линк аль ч утсан дээр ажиллана 💕'
+      : 'Линк болон QR хоёул аль ч утсан дээр ажиллана 💕';
   }
 
   $('copyLink').addEventListener('click', () => {
@@ -909,12 +944,13 @@
 
   // Хуваалцсан агуулгыг саналын дэлгэцэд тавих (хүлээн авагчийн горим)
   function applyShared(data) {
+    photos = Array.isArray(data.p) ? data.p : [];   // линкэнд орсон зургууд
     $('question').textContent = data.q || 'Надтай болзоно уу? 🥹';
     $('celebTitle').textContent = data.t || 'Чамайгаа хайрлаж байна 🥰';
     noteText = data.note || '';
     $('celebSign').textContent = data.s || '— Чиний хайрт 💌';
-    setAvatar($('avatar'));       // зураг байхгүй → 💌 fallback
-    buildPolaroids($('gallery')); // хоосон
+    setAvatar($('avatar'));
+    buildPolaroids($('gallery'));
     resetNoBtn();
   }
 

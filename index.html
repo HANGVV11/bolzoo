@@ -316,6 +316,7 @@
     padding: 14px; font-size: 13px; color: var(--ink-soft); line-height: 1.6; text-align: center;
   }
   .qr-msg b { color: var(--crimson); }
+  .edit-link-row { margin: -4px 0 14px; font-size: 12.5px; }
 
   /* ====================================================== */
   /* ===============  БАЯР ЁСЛОЛ (signature)  ============== */
@@ -596,6 +597,8 @@
         <input id="shareLink" type="text" readonly aria-label="Хуваалцах линк" />
         <button class="btn primary" id="copyLink" type="button">Хуулах</button>
       </div>
+
+      <p class="edit-link-row"><button class="text-link" id="copyEditLink" type="button">✏️ Засварлах линк хуулах (зөвхөн өөртөө)</button></p>
 
       <div class="share-actions">
         <button class="btn ghost" id="openSelf" type="button">👀 Өөрөө нээж үзэх</button>
@@ -933,6 +936,16 @@
     setTimeout(() => { b.textContent = old; }, 1300);
   });
 
+  $('copyEditLink').addEventListener('click', () => {
+    const v = $('shareLink').value;
+    if (!v || v.indexOf('#d=') === -1) return;
+    const editLink = v + '&edit=1';
+    if (navigator.clipboard) navigator.clipboard.writeText(editLink).catch(() => {});
+    const b = $('copyEditLink'); const old = b.textContent;
+    b.textContent = 'Засварлах линк хууллаа ✓';
+    setTimeout(() => { b.textContent = old; }, 1400);
+  });
+
   $('openSelf').addEventListener('click', () => show('proposal'));
   $('shareEdit').addEventListener('click', () => show('setup'));
 
@@ -1096,9 +1109,14 @@
     if (!m) return;
     const data = decodeData(m[1]);
     if (!data) return;
-    fillForm(data);     // форм + preview-г дүүргэнэ (засаж болно)
+    fillForm(data);     // форм + preview-г дүүргэнэ
     buildProposal();    // саналыг бэлдэнэ
-    show('proposal');   // эхлээд гэнэтийн саналыг харуулна — "✏️ Засах"-аар засна
+
+    // "Засах" товч: зөвхөн edit=1 туг байвал л харагдана (хайртдаа цэвэр санал)
+    const params = new URLSearchParams(location.hash.slice(1));
+    $('editLink').style.display = (params.get('edit') === '1') ? '' : 'none';
+
+    show('proposal');   // гэнэтийн саналыг харуулна
   })();
 </script>
 </body>

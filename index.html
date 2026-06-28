@@ -1128,7 +1128,7 @@
   let actx = null, master = null, schedTimer = null;
   let musicPlaying = false, musicOptedOut = false;
   let mStep = 0, mNext = 0;
-  const BEAT = 0.52;                  // удаан, уянгалаг хэмнэл
+  const BEAT = 0.54;                  // удаан, уянгалаг хэмнэл
   const BEATS = 32;
   const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
@@ -1157,7 +1157,19 @@
   const melMap = {};
   (function () { let a = 0; for (const [n, d] of MELODY) { if (n) melMap[a] = { n, d }; a += d; } })();
 
-  function mVoice(freq, t, dur, vol, type) {
+  // Цуурай (реверб) импульс — шуугианыг экспоненциалаар бууруулж үүсгэнэ
+  function makeReverbIR(sec, decay) {
+    const rate = actx.sampleRate, len = Math.floor(rate * sec);
+    const buf = actx.createBuffer(2, len, rate);
+    for (let c = 0; c < 2; c++) {
+      const d = buf.getChannelData(c);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    }
+    return buf;
+  }
+
+  // Зөөлөн цохилт (бас, арпеджио)
+  function pluck(freq, t, dur, vol, type) {
     const o = actx.createOscillator(), g = actx.createGain();
     o.type = type; o.frequency.value = freq;
     o.connect(g); g.connect(master);
@@ -1166,14 +1178,50 @@
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.start(t); o.stop(t + dur + 0.08);
   }
+
+  // Дулаан pad — хэмжээ тутамд аажуу нэмэгдэж буудаг аккорд дэвсгэр
+  function pad(notes, t, dur, vol) {
+    notes.forEach((n) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'sine'; o.frequency.value = midi(n);
+      o.connect(g); g.connect(master);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(vol, t + 0.6);
+      g.gain.setValueAtTime(vol, t + dur * 0.55);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.start(t); o.stop(t + dur + 0.1);
+    });
+  }
+
+  // Дуулах гол аялгуу — хор (хоёр чимээ бага зэрэг өөр) + зөөлөн vibrato
+  function lead(freq, t, dur, vol) {
+    [0, 7].forEach((det, i) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'triangle'; o.frequency.value = freq; o.detune.value = det;
+      const lfo = actx.createOscillator(), lg = actx.createGain();
+      lfo.type = 'sine'; lfo.frequency.value = 5.2; lg.gain.value = 6;
+      lfo.connect(lg); lg.connect(o.detune);
+      o.connect(g); g.connect(master);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol * (i ? 0.5 : 1), t + 0.06);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      lfo.start(t); o.start(t);
+      lfo.stop(t + dur + 0.12); o.stop(t + dur + 0.12);
+    });
+  }
+
   function mSchedBeat(b, t) {
     const ch = PROG[Math.floor(b / 4) % PROG.length];
     const inBar = b % 4;
-    if (inBar === 0) mVoice(midi(ch.bass), t, 1.7, 0.06, 'triangle');         // зөөлөн бас
-    mVoice(midi(ch.triad[inBar % 3]), t, 0.95, 0.03, 'sine');                 // далд арпеджио
+    if (inBar === 0) {
+      pluck(midi(ch.bass), t, 1.9, 0.05, 'triangle');     // зөөлөн бас
+      pad(ch.triad, t, 4 * BEAT, 0.02);                   // дулаан аккорд дэвсгэр
+    }
+    pluck(midi(ch.triad[inBar % 3]), t, 0.9, 0.024, 'sine'); // далд арпеджио
     const mel = melMap[b % BEATS];
-    if (mel) mVoice(midi(mel.n), t, mel.d * BEAT * 0.96, 0.085, 'triangle');  // тод гол аялгуу
+    if (mel) lead(midi(mel.n), t, mel.d * BEAT * 0.95, 0.075); // дуулах гол аялгуу
   }
+
   function mScheduler() {
     while (mNext < actx.currentTime + 0.3) {
       mSchedBeat(mStep, mNext);
@@ -1188,11 +1236,18 @@
         actx = new (window.AudioContext || window.webkitAudioContext)();
         master = actx.createGain();
         master.gain.value = 0.0001;
-        master.connect(actx.destination);
+        // master → зөөлрүүлэх шүүлтүүр → гаралт (хуурай), мөн → реверб → гаралт (нойтон)
+        const lp = actx.createBiquadFilter();
+        lp.type = 'lowpass'; lp.frequency.value = 2600; lp.Q.value = 0.4;
+        const verb = actx.createConvolver(); verb.buffer = makeReverbIR(2.6, 2.6);
+        const wet = actx.createGain(); wet.gain.value = 0.34;
+        master.connect(lp);
+        lp.connect(actx.destination);
+        lp.connect(verb); verb.connect(wet); wet.connect(actx.destination);
       }
       if (actx.state === 'suspended') actx.resume();
       mStep = 0;                          // аялгуу эхнээсээ эхэлнэ
-      mNext = actx.currentTime + 0.1;
+      mNext = actx.currentTime + 0.12;
       if (!schedTimer) mScheduler();
       master.gain.cancelScheduledValues(actx.currentTime);
       master.gain.setValueAtTime(Math.max(master.gain.value, 0.0001), actx.currentTime);
